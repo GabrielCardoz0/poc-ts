@@ -1,9 +1,11 @@
 import { Router } from "express";
-import { deleteContact, getContacts, insertNewContact, updateContact } from "../controllers/contact.controller.js";
+import { deleteContact, getContacts, getTotalContacts, insertNewContact, updateContact } from "../controllers/contact.controller.js";
 
 const contactsRouter = Router();
 
 contactsRouter.get("/contacts" , getContacts );
+
+contactsRouter.get("/totalcontacts" , getTotalContacts);
 
 contactsRouter.post("/contacts" , insertNewContact);
 
