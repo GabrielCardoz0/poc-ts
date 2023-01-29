@@ -1,12 +1,22 @@
-import dbconnection from "../database/db.js";
 import { Contact } from "../protocols/contact.js";
-import { QueryResult } from "pg";
+// import { QueryResult } from "pg";
+import prisma from "../database/db.js";
+
+
+type NewUser = {
+    username:string
+}
 
 
 
-export async function getContactsList() :Promise<QueryResult <Contact>>{
+export async function getContactsList(id :string) {
     try {
-        const contactsList = await dbconnection.query("SELECT * FROM contacts ORDER BY id ASC;");
+        // const contactsList = await dbconnection.query('SELECT * FROM contacts where "userId" = $1 order by id asc;' , [id]);
+        const contactsList = await prisma.contacts.findMany({
+            where:{
+                userId:Number(id)
+            }
+        });
 
         return contactsList;
 
@@ -15,41 +25,54 @@ export async function getContactsList() :Promise<QueryResult <Contact>>{
     };
 };
 
-export async function getTotalContactsList() :Promise<number>{
-    
-    const totalContacts = await dbconnection.query('SELECT COUNT(id) AS "total" FROM contacts;');
-    return totalContacts.rows[0];
-}
-
-
-export async function insertNewContactRepository(contact:Contact){
+export async function insertNewContactRepository(userId :number, contact :Contact) :Promise<boolean> {
     try {
         
         const {name , number , cep , logradouro , bairro , localidade , uf} = contact;
 
-        const newContact : {rowCount:Number}= await dbconnection.query(`
-        INSERT INTO contacts
-            (name ,number, cep , logradouro , bairro , cidade , uf)
-        VALUES
-            ($1,$2,$3,$4,$5,$6,$7);
-        ` , [name , number , cep , logradouro , bairro , localidade , uf]);
+        const newContact = await prisma.contacts.create({
+            data:{
+                name:name,
+                number:number,
+                cep:cep.toString(),
+                userId:Number(userId)
+            }
+        });
 
-        if(newContact.rowCount === 0) return false;
+        const newContactId = await prisma.contacts.findFirst({
+            where:{
+                userId
+            }
+        });
+
+        const newEnrollment = await prisma.enrollments.create({
+            data:{
+                logradouro:logradouro,
+                bairro:bairro,
+                localidade:localidade,
+                uf:uf,
+                contactId:newContactId.id
+            }
+        });
 
         return true;
 
     } catch (error) {
-        console.log(error);
+        console.log("erro lá ele:" , error);
         return false;
     };
 };
 
-
-export async function deleteContactRepository(id:(number|string)){
+export async function deleteContactRepository(id :number){
     try {
-        const deleteConfirmation :{rowCount:number} = await dbconnection.query(`DELETE FROM contacts WHERE id = $1;` , [id]);
 
-        if(deleteConfirmation.rowCount === 0) return false;
+        const deleteContact = await prisma.contacts.delete({
+            where:{
+                id
+            }
+        });
+
+        if(!deleteContact) return false;
 
         return true;
         
@@ -59,23 +82,28 @@ export async function deleteContactRepository(id:(number|string)){
     };
 };
 
-
-export async function updateContactRepository(id:string , contactInfo:Contact){
+export async function updateContactRepository(contactId :number , contactInfo :Contact){
     try {
+
+        console.log(contactId);
+        
         
         const {name , number , cep , logradouro , bairro , localidade , uf} = contactInfo;
 
-        const updateConfirmation :{rowCount:number} = await dbconnection.query(`
-        UPDATE
-            contacts
-        SET
-            (name ,number, cep , logradouro , bairro , cidade , uf) = ($1,$2,$3,$4,$5,$6,$7)
-        WHERE
-            id = $8;`
-            ,
-        [name , number , cep , logradouro , bairro , localidade , uf, id]);
+        const updateConfirmation = await prisma.contacts.update({
+            data:{
+                name:name,
+                number:number,
+                cep:cep.toString()
+            },
+            where:{
+                id:contactId
+            }
+        })
 
-        if(updateConfirmation.rowCount === 0) return false;
+
+        if( !updateConfirmation) return false;
+
 
         return true;
         
@@ -84,3 +112,24 @@ export async function updateContactRepository(id:string , contactInfo:Contact){
         return false;
     };
 };
+
+export async function createUserRepository(newUser :NewUser) {
+
+    const createUser = await prisma.users.create({
+        data:{
+            username:newUser.toString()
+        }
+    });
+
+    console.log(createUser);
+    
+
+    return createUser;
+};
+
+export async function getUsersRepository() {
+    // const usersList = await dbconnection.query("SELECT * FROM users;");
+    const usersList = await prisma.users.findMany();
+    
+    return usersList;
+}

@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { Contact } from "../protocols/contact";
+import { NextFunction, Request , Response } from "express";
 
 const userSchema = Joi.object({
   name: Joi.string().required(),
@@ -7,13 +7,14 @@ const userSchema = Joi.object({
   cep: Joi.string().required()
 });
 
-export default async function newUserSchemaValidation(user :Contact) {
-  const validation = userSchema.validate(user , {abortEarly : false});
+export default async function newUserSchemaValidation(req:Request , res:Response , next :NextFunction) {
+
+  const validation = userSchema.validate(req.body , {abortEarly : false});
 
   if(validation.error){
     const errorsList = validation.error.details.map(d => d.message);
-    return false;
+    return res.status(401).send(errorsList);
   };
 
-  return true;
+  next();
 };

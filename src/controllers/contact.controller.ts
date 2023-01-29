@@ -1,15 +1,15 @@
 import {
   deleteContactRepository,
   getContactsList,
-  getTotalContactsList,
   insertNewContactRepository,
   updateContactRepository,
+  createUserRepository,
+  getUsersRepository
 } from "../repositories/contacts.repository.js";
 
 import { Request, Response } from "express";
 import axios from "../../node_modules/axios/index.js";
 import { Contact } from "../protocols/contact.js";
-import newUserSchemaValidation from "../middlewares/schemaValidation.js";
 
 type ComplementInfo = {
   logradouro: string;
@@ -18,36 +18,43 @@ type ComplementInfo = {
   uf: string;
 };
 
+
+
 async function getContacts(req: Request, res: Response) {
   try {
-    const contactsList = await getContactsList() as {rows:{}[]};
+    const { id } = req.params;
 
-    if (contactsList.rows.length === 0) return res.sendStatus(404);
+    const contactsList = await getContactsList(id);
 
-    return res.send(contactsList);
+    if (contactsList.length < 0) return res.sendStatus(404);
+
+    return res.status(200).send(contactsList);
+
   } catch (error) {
     console.log(error);
     return res.sendStatus(500);
   }
-}
+};
 
 async function getTotalContacts(req: Request, res: Response) {
   try {
-    const totalContacts = await getTotalContactsList() as number;
-    return res.status(200).send(totalContacts);
+    const { id } = req.params;
+
+    const contactsList = await getContactsList(id);
+
+    return res.status(200).send({total:contactsList.length});
+
   } catch (error) {
     console.log(error);
     return res.sendStatus(500);
   };
-}
+};
 
 async function insertNewContact(req: Request, res: Response) {
   try {
     let newContact = req.body as Contact;
 
-    const contactsValidation = await newUserSchemaValidation(newContact) as boolean;
-
-    if(!contactsValidation) return res.sendStatus(400);
+    const { id } = req.params;
 
     await axios
       .get(`https://viacep.com.br/ws/${newContact.cep}/json/`)
@@ -69,7 +76,7 @@ async function insertNewContact(req: Request, res: Response) {
         return res.sendStatus(500);
       });
 
-    const insertVerify :boolean = await insertNewContactRepository(newContact);
+    const insertVerify :boolean = await insertNewContactRepository(Number(id) , newContact);
 
     if(!insertVerify) return res.sendStatus(400);
 
@@ -78,13 +85,14 @@ async function insertNewContact(req: Request, res: Response) {
     console.log("deu erro aqui", error);
     res.sendStatus(500);
   }
-}
+};
 
 async function deleteContact(req: Request, res: Response) {
   try {
-    const { id } = req.params;
+    
+    const { contactId } = req.params;
 
-    const deleteVerify :boolean = await deleteContactRepository(id);
+    const deleteVerify :boolean = await deleteContactRepository(Number(contactId));
 
     if (!deleteVerify) return res.sendStatus(400);
 
@@ -93,11 +101,11 @@ async function deleteContact(req: Request, res: Response) {
     console.log(error);
     return res.sendStatus(500);
   }
-}
+};
 
 async function updateContact(req: Request, res: Response) {
   try {
-    const { id } = req.params;
+    const { contactId } = req.params;
 
     let newContactInfo :Contact = req.body;
 
@@ -122,7 +130,7 @@ async function updateContact(req: Request, res: Response) {
         console.log(err.response.data);
       });
 
-    const updateVerify = await updateContactRepository(id, newContactInfo);
+    const updateVerify = await updateContactRepository(Number(contactId), newContactInfo);
 
     if (!updateVerify) return res.sendStatus(400);
 
@@ -131,6 +139,30 @@ async function updateContact(req: Request, res: Response) {
     console.log(error);
     return res.sendStatus(500);
   }
-}
+};
 
-export { insertNewContact, getContacts, getTotalContacts, deleteContact, updateContact };
+async function createUser(req :Request , res :Response) {
+  try {
+    const { username } = req.body
+    const user = await createUserRepository(username);
+
+    return res.status(201).send(user);
+  } catch (error) {
+    console.log(error);
+    res.sendStatus(500);
+  };
+};
+
+async function getUsers(req :Request , res :Response) {
+  try {
+    const usersList = await getUsersRepository();
+
+    res.status(200).send(usersList);
+  } catch (error) {
+    console.log(error);
+    res.sendStatus(500);
+  };
+};
+
+export { insertNewContact, getContacts, getTotalContacts, deleteContact, updateContact ,createUser ,getUsers };
+
